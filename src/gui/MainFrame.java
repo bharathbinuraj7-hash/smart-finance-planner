@@ -1,57 +1,49 @@
 package gui;
 
-import javax.swing.*;
-import logic.InflationCalculator;
-import logic.SavingsPlanner;
 import model.Goal;
+import javax.swing.*;
+import java.awt.*;
 
 public class MainFrame extends JFrame {
+    private CardLayout cardLayout;
+    private JPanel cardPanel;
+
     private InputPanel inputPanel;
+    private ResultPanel resultPanel;
+    private DashboardPanel dashboardPanel;
 
     public MainFrame() {
         setTitle("Smart Finance Planner");
-        setSize(450, 400);
+        setSize(500, 450);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
-        inputPanel = new InputPanel();
-        add(inputPanel);
+        cardLayout = new CardLayout();
+        cardPanel = new JPanel(cardLayout);
 
-        inputPanel.getCalculateButton().addActionListener(e -> calculateAndShowResult());
+        inputPanel = new InputPanel(this);
+        resultPanel = new ResultPanel(this);
+        dashboardPanel = new DashboardPanel(this);
+
+        cardPanel.add(inputPanel, "input");
+        cardPanel.add(resultPanel, "result");
+        cardPanel.add(dashboardPanel, "dashboard");
+
+        add(cardPanel);
+        cardLayout.show(cardPanel, "input");
     }
 
-private void calculateAndShowResult() {
-    try {
-        Goal goal = new Goal(
-                inputPanel.getItemName(),
-                inputPanel.getPrice(),
-                inputPanel.getTargetYear(),
-                inputPanel.getInflationRate()
-        );
-
-        if (goal.getYearsLeft() <= 0) {
-            JOptionPane.showMessageDialog(this,
-                    "Target Year must be a future calendar year (e.g. 2029), not a number of years.",
-                    "Input Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        InflationCalculator calc = new InflationCalculator(goal.getInflationRate());
-        double futureCost = calc.futureValue(goal.getCurrentPrice(), goal.getInflationRate(), goal.getYearsLeft());
-
-        SavingsPlanner planner = new SavingsPlanner(inputPanel.getIncome(), inputPanel.getSavingsPercent(), inputPanel.getTermType());
-        double monthlySaving = planner.monthlySaving(futureCost, goal.getYearsLeft());
-        double possibleMonthly = planner.percentSaving();
-
-        String message = String.format(
-                "Future Cost: Rs. %.2f%nMonthly Saving Needed: Rs. %.2f%nYou Can Save: Rs. %.2f%nAffordable: %s",
-                futureCost, monthlySaving, possibleMonthly, planner.isAffordable(monthlySaving) ? "Yes" : "No"
-        );
-
-        JOptionPane.showMessageDialog(this, message, "Result", JOptionPane.INFORMATION_MESSAGE);
-
-    } catch (NumberFormatException ex) {
-        JOptionPane.showMessageDialog(this, "Please enter valid numbers in all fields.", "Input Error", JOptionPane.ERROR_MESSAGE);
+    public void showInputScreen() {
+        cardLayout.show(cardPanel, "input");
     }
-}
+
+    public void showResultScreen(Goal goal, double futureCost, double monthlySaving, double possibleMonthly, boolean affordable) {
+        resultPanel.setResult(goal, futureCost, monthlySaving, possibleMonthly, affordable);
+        cardLayout.show(cardPanel, "result");
+    }
+
+    public void showDashboardScreen() {
+        dashboardPanel.refreshGoals();
+        cardLayout.show(cardPanel, "dashboard");
+    }
 }

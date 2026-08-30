@@ -2,8 +2,13 @@ package gui;
 
 import java.awt.*;
 import javax.swing.*;
+import logic.InflationCalculator;
+import logic.SavingsPlanner;
+import model.Goal;
 
 public class InputPanel extends JPanel {
+    private MainFrame mainFrame;
+
     private JTextField itemNameField;
     private JTextField priceField;
     private JTextField yearField;
@@ -13,8 +18,10 @@ public class InputPanel extends JPanel {
     private JComboBox<String> termBox;
     private JButton calculateButton;
 
-    public InputPanel() {
+    public InputPanel(MainFrame mainFrame) {
+        this.mainFrame = mainFrame;
         setLayout(new GridLayout(8, 2, 10, 10));
+        setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         add(new JLabel("Item Name:"));
         itemNameField = new JTextField();
@@ -46,37 +53,43 @@ public class InputPanel extends JPanel {
 
         calculateButton = new JButton("Calculate");
         add(calculateButton);
+
+        calculateButton.addActionListener(e -> calculate());
     }
 
-    public String getItemName() {
-        return itemNameField.getText();
-    }
+    private void calculate() {
+        try {
+            Goal goal = new Goal(
+                    itemNameField.getText(),
+                    Double.parseDouble(priceField.getText()),
+                    Integer.parseInt(yearField.getText()),
+                    Double.parseDouble(inflationField.getText())
+            );
 
-    public double getPrice() {
-        return Double.parseDouble(priceField.getText());
-    }
+            if (goal.getYearsLeft() <= 0) {
+                JOptionPane.showMessageDialog(this,
+                        "Target Year must be a future calendar year (e.g. 2029).",
+                        "Input Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
-    public int getTargetYear() {
-        return Integer.parseInt(yearField.getText());
-    }
+            InflationCalculator calc = new InflationCalculator(goal.getInflationRate());
+            double futureCost = calc.futureValue(goal.getCurrentPrice(), goal.getInflationRate(), goal.getYearsLeft());
 
-    public double getInflationRate() {
-        return Double.parseDouble(inflationField.getText());
-    }
+            SavingsPlanner planner = new SavingsPlanner(
+                    Double.parseDouble(incomeField.getText()),
+                    Double.parseDouble(savingsPercentField.getText()),
+                    (String) termBox.getSelectedItem()
+            );
 
-    public double getIncome() {
-        return Double.parseDouble(incomeField.getText());
-    }
+            double monthlySaving = planner.monthlySaving(futureCost, goal.getYearsLeft());
+            double possibleMonthly = planner.percentSaving();
+            boolean affordable = planner.isAffordable(monthlySaving);
 
-    public double getSavingsPercent() {
-        return Double.parseDouble(savingsPercentField.getText());
-    }
+            mainFrame.showResultScreen(goal, futureCost, monthlySaving, possibleMonthly, affordable);
 
-    public String getTermType() {
-        return (String) termBox.getSelectedItem();
-    }
-
-    public JButton getCalculateButton() {
-        return calculateButton;
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Please enter valid numbers in all fields.", "Input Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
